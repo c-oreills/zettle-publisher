@@ -10,9 +10,17 @@ repo_path = os.environ.get("REPO_PATH")
 pages_subpath = os.environ.get("PAGES_SUBPATH", "z")
 publish_tag = os.environ.get("OPEN_TAG", "#PublishToPages")
 
+
 publish_re = re.compile(publish_tag + r"\s*\(([\w-]+)\)")
 
 assert publish_re.match(publish_tag + "(test-url)")
+
+
+PAGE_FRONTMATTER = """---
+layout: page
+title: {title}
+---
+"""
 
 
 def copy_files_to_pages():
@@ -33,18 +41,11 @@ def copy_files_to_pages():
                 copy_file_to_pages(file_name, f, publish_url)
 
 
-PAGE_FRONTMATTER = """---
-layout: page
-title: {title}
-exclude: true
----
-"""
-
-
 def copy_file_to_pages(file_name, src_f, publish_url):
     title = file_name[:-3]
     print(f"Writing {publish_url}, title {title}")
     repo_full_path = os.path.join(repo_path, pages_subpath, publish_url + '.md')
+
     with open(repo_full_path, 'w') as dst_f:
         # Return to start of src file
         src_f.seek(0)
