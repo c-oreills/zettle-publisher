@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import datetime
 import os
 import re
@@ -11,9 +12,20 @@ pages_subpath = os.environ.get("PAGES_SUBPATH", "z")
 publish_tag = os.environ.get("OPEN_TAG", "#PublishToPages")
 
 
+pages_path = os.path.join(repo_path, pages_subpath)
+
 publish_re = re.compile(publish_tag + r"\s*\(([\w-]+)\)")
 
 assert publish_re.match(publish_tag + "(test-url)")
+
+
+# Note: these are inverted since we are using a diff --cached against HEAD
+CHANGE_TYPES = {
+    'A': 'delete',
+    'D': 'add',
+    'M': 'update',
+    'R': 'rename'
+}
 
 
 PAGE_FRONTMATTER = """---
@@ -21,6 +33,20 @@ layout: page
 title: {title}
 ---
 """
+
+
+def clear_existing_pages():
+    for file_name in os.listdir(pages_path):
+        if file_name == ".gitignore":
+            continue
+
+        full_path = os.path.join(pages_path, file_name)
+
+        # Check if the file is a regular file (not a directory)
+        if not os.path.isfile(full_path):
+            continue
+
+        os.remove(full_path)
 
 
 def copy_files_to_pages():
@@ -58,16 +84,30 @@ def copy_file_to_pages(file_name, src_f, publish_url):
             dst_f.writelines((l,))
 
 
-def commit():
+def commit_and_push_changes():
     repo = git.Repo(repo_path)
 
-    repo.git.add(all=True)
+    repo.git.add(pages_subpath)
 
-    commit_message = f"Updates as of {datetime.now()}"
+    diff = repo.index.diff("HEAD")
+    if not diff:
+        return
+
+    diff_paths = defaultdict(list)
+
+    for d in diff:
+        publish_url = os.path.basename(d.a_path)
+        diff_paths[CHANGE_TYPES[d.change_type]].append(publish_url)
+
+    commit_message = "Zettle publisher: " + '; '.join(
+        f"{ct} " + ', '.join(paths) for ct, paths in diff_paths.items()
+    )
     repo.git.commit(m=commit_message)
 
     repo.git.push()
 
 
-copy_files_to_pages()
-#commit()
+if __name__ == '__main__':
+    clear_existing_pages()
+    copy_files_to_pages()
+    commit_and_push_changes()
