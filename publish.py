@@ -69,7 +69,6 @@ def copy_files_to_pages():
 
 def copy_file_to_pages(file_name, src_f, publish_url):
     title = file_name[:-3]
-    print(f"Writing {publish_url}, title {title}")
     repo_full_path = os.path.join(repo_path, pages_subpath, publish_url + '.md')
 
     with open(repo_full_path, 'w') as dst_f:
